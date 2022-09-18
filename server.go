@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+  _ "embed"
 
 	"github.com/Jlll1/Puchar/templates"
 	"github.com/labstack/echo"
@@ -11,18 +12,31 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+//go:embed db/schema.sql
+var schema string
+//go:embed db/init.sql
+var initialData string
+
 func main() {
 	e := echo.New()
 
-  db, err := sql.Open("sqlite3", "puchar.db")
+  db, err := sql.Open("sqlite3", ":memory:")
   if err != nil {
     log.Fatal(err)
   }
-  h := Handler{DB: db}
 
+  if _, err := db.Exec(schema); err != nil {
+    log.Fatal(err)
+  }
+  if _, err := db.Exec(initialData); err != nil {
+    log.Fatal(err)
+  }
+
+  h := Handler{DB: db}
   e.GET("/", h.getDashboard)
+
   e.Use(middleware.Logger())
-	e.Logger.Fatal(e.Start(":5500"))
+  e.Logger.Fatal(e.Start(":5500"))
 }
 
 type Handler struct {
@@ -33,18 +47,16 @@ func (h *Handler) getDashboard(c echo.Context) error {
   rows, err := h.DB.Query(`
 SELECT  "tournament"."title"
        ,"tournament"."subtitle"
-       ,(SELECT MAX("round_pairing_xref"."round_id")
-           FROM "round_pairing_xref"
-          WHERE "round_pairing_xref"."tournament_id" = 1)
+       ,(SELECT MAX("pairing"."round_id")
+           FROM "pairing"
+          WHERE "pairing"."tournament_id" = 1)
        ,"player1"."name"
        ,"pairing"."first_player_score"
        ,"player2"."name"
        ,"pairing"."second_player_score"
   FROM  "tournament"
-  JOIN  "round_pairing_xref"
-    ON  "round_pairing_xref"."tournament_id" = "tournament"."tournament_id"
   JOIN  "pairing"
-    ON  "pairing"."pairing_id" = "round_pairing_xref"."pairing_id"
+    ON  "pairing"."tournament_id" = "tournament"."tournament_id"
   JOIN  "player" AS "player1"
     ON  "player1"."player_id" = "pairing"."first_player_id"
   JOIN  "player" AS "player2"
