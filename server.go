@@ -12,6 +12,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+//go:generate qtc -dir=templates
+
 //go:embed db/schema.sql
 var schema string
 //go:embed db/init.sql

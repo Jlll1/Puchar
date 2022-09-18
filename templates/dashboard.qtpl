@@ -83,9 +83,17 @@ type DashboardPage struct {
           <tr>
             <th>?</th>
             <td class="has-text-left">{%s pairing.Player1Name %}</td>
+{% comment %}
+  @TODO handle draws
+{% endcomment %}
             <td class="is-flex is-justify-content-center">
-              <span class="badge-win mr-1">{%d pairing.Player1Score %}</span>
-              <span class="badge-defeat">{%d pairing.Player2Score %}</span>
+              {% if pairing.Player1Score > pairing.Player2Score %}
+                <span class="badge-win mr-1">{%d pairing.Player1Score %}</span>
+                <span class="badge-defeat">{%d pairing.Player2Score %}</span>
+              {% else %}
+                <span class="badge-defeat mr-1">{%d pairing.Player1Score %}</span>
+                <span class="badge-win">{%d pairing.Player2Score %}</span>
+              {% endif %}
             </td>
             <td class="has-text-right">{%s pairing.Player2Name %}</td>
           </tr>
