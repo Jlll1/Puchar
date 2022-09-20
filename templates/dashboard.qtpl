@@ -1,5 +1,10 @@
 {% code
 
+type StandingModel struct {
+  PlayerName string
+  Points     int
+}
+
 type PairingModel struct {
   Player1Name  string
   Player1Score int
@@ -13,6 +18,7 @@ type DashboardPage struct {
   SelectedRound      int
   RoundCount         int
   Pairings           []PairingModel
+  Standings          []StandingModel
 }
 
 %}
@@ -126,6 +132,13 @@ type DashboardPage struct {
           </tr>
         </thead>
         <tbody>
+          {% for i, s := range p.Standings %}
+            <tr>
+              <td>{%d i + 1 %}</td>
+              <td>{%s s.PlayerName %}</td>
+              <td>{%d s.Points %}</td>
+            </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>

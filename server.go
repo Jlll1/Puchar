@@ -57,7 +57,13 @@ func (h *Handler) getDashboard(c echo.Context) error {
     c.Error(err)
   }
 
-  rows, err := h.DB.Query(`
+  model := templates.DashboardPage{
+    Pairings: []templates.PairingModel{},
+    Standings: []templates.StandingModel{},
+    SelectedRound: roundParam,
+  }
+
+  tDetailsAndRoundsRows, err := h.DB.Query(`
 SELECT  "tournament"."title"
        ,"tournament"."subtitle"
        ,(SELECT MAX("pairing"."round_id")
@@ -75,19 +81,15 @@ SELECT  "tournament"."title"
   JOIN  "player" AS "player2"
     ON  "player2"."player_id" = "pairing"."second_player_id"
  WHERE  "tournament"."tournament_id" = 1
-   AND  "pairing"."round_id" = $1`, roundParam)
+   AND  "pairing"."round_id" = $1;`, roundParam)
   if err != nil {
     return err
   }
-  defer rows.Close()
+  defer tDetailsAndRoundsRows.Close()
 
-  model := templates.DashboardPage{
-    Pairings: []templates.PairingModel{},
-    SelectedRound: roundParam,
-  }
-  for rows.Next() {
+  for tDetailsAndRoundsRows.Next() {
     p := templates.PairingModel{}
-    err = rows.Scan(
+    err = tDetailsAndRoundsRows.Scan(
       &model.TournamentTitle,
       &model.TournamentSubtitle,
       &model.RoundCount,
@@ -95,7 +97,36 @@ SELECT  "tournament"."title"
       &p.Player1Score,
       &p.Player2Name,
       &p.Player2Score)
-    model.Pairings = append(model.Pairings, p)
+    if err == nil {
+      model.Pairings = append(model.Pairings, p)
+    }
   }
+
+  // @INCOMPLETE - throwing in a random not actually working query until result-keeping is designed
+  standingsRows, err := h.DB.Query(`
+   SELECT "player"."name"
+         ,COUNT(*) AS "score"
+     FROM "player"
+     JOIN "pairing"
+     ON ("pairing"."first_player_id" = "player"."player_id" 
+         AND "pairing"."first_player_score" > "pairing"."second_player_score")
+     OR ("pairing"."second_player_id" = "player"."player_id"
+         AND "pairing"."second_player_score" > "pairing"."first_player_score")
+GROUP BY "player"."player_id"
+ORDER BY "score" DESC
+         ,"player"."name" ASC;`)
+  if err != nil {
+    return err
+  }
+  defer standingsRows.Close()
+
+  for standingsRows.Next() {
+    s := templates.StandingModel{}
+    err = standingsRows.Scan(&s.PlayerName, &s.Points)
+    if err == nil {
+      model.Standings = append(model.Standings, s)
+    }
+  }
+
   return c.HTML(http.StatusOK, templates.Dashboard(&model))
 }
