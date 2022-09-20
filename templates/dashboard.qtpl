@@ -1,17 +1,18 @@
 {% code
 
 type PairingModel struct {
-  Player1Name string
+  Player1Name  string
   Player1Score int
-  Player2Name string
+  Player2Name  string
   Player2Score int
 }
 
 type DashboardPage struct {
-  TournamentTitle     string
-  TournamentSubtitle  string
-  RoundCount          int
-  Pairings            []PairingModel
+  TournamentTitle    string
+  TournamentSubtitle string
+  SelectedRound      int
+  RoundCount         int
+  Pairings           []PairingModel
 }
 
 %}
@@ -28,7 +29,8 @@ type DashboardPage struct {
 
   <style>
     .badge-win,
-    .badge-defeat {
+    .badge-defeat,
+    .badge-draw {
       color: #FFFFFF;
       border-radius: 3px;
       text-align: center;
@@ -41,6 +43,10 @@ type DashboardPage struct {
 
     .badge-defeat {
       background: #FF0033;
+    }
+
+    .badge-draw {
+      background: #888888;
     }
   </style>
 
@@ -66,7 +72,13 @@ type DashboardPage struct {
     <div class="column is-three-quarters" style="padding-right: 50px;">
     <nav class="pagination is-small">
       <ul class="pagination-list">
-        <li><a class="pagination-link">1</a></li>
+        {% for i := 1; i <= p.RoundCount; i++ %}
+          {% if i == p.SelectedRound %}
+            <li><a href="/dashboard?round={%d i %}" class="pagination-link is-current">{%d i %}</a></li>
+          {% else %}
+            <li><a href="/dashboard?round={%d i %}" class="pagination-link">{%d i %}</a></li>
+          {% endif %}
+        {% endfor %}
       </ul>
     </nav>
     <table class="table is-fullwidth">
@@ -83,16 +95,18 @@ type DashboardPage struct {
           <tr>
             <th>?</th>
             <td class="has-text-left">{%s pairing.Player1Name %}</td>
-{% comment %}
-  @TODO handle draws
-{% endcomment %}
             <td class="is-flex is-justify-content-center">
               {% if pairing.Player1Score > pairing.Player2Score %}
                 <span class="badge-win mr-1">{%d pairing.Player1Score %}</span>
                 <span class="badge-defeat">{%d pairing.Player2Score %}</span>
               {% else %}
-                <span class="badge-defeat mr-1">{%d pairing.Player1Score %}</span>
-                <span class="badge-win">{%d pairing.Player2Score %}</span>
+                {% if pairing.Player1Score < pairing.Player2Score %}
+                  <span class="badge-defeat mr-1">{%d pairing.Player1Score %}</span>
+                  <span class="badge-win">{%d pairing.Player2Score %}</span>
+                {% else %}
+                  <span class="badge-draw mr-1">{%d pairing.Player1Score %}</span>
+                  <span class="badge-draw">{%d pairing.Player2Score %}</span>
+                {% endif %}
               {% endif %}
             </td>
             <td class="has-text-right">{%s pairing.Player2Name %}</td>
