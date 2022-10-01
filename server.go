@@ -1,27 +1,28 @@
 package main
 
 import (
-	"database/sql"
-	_ "embed"
-	"log"
-	"net/http"
-	"strconv"
+  "database/sql"
+  _ "embed"
+  "log"
+  "net/http"
+  "strconv"
 
-	"github.com/Jlll1/Puchar/templates"
-	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
-	_ "github.com/mattn/go-sqlite3"
+  "github.com/Jlll1/Puchar/templates"
+  "github.com/labstack/echo"
+  "github.com/labstack/echo/middleware"
+  _ "github.com/mattn/go-sqlite3"
 )
 
 //go:generate qtc -dir=templates
 
 //go:embed db/schema.sql
 var schema string
+
 //go:embed db/init.sql
 var initialData string
 
 func main() {
-	e := echo.New()
+  e := echo.New()
 
   db, err := sql.Open("sqlite3", ":memory:")
   if err != nil {
@@ -37,6 +38,11 @@ func main() {
 
   h := Handler{DB: db}
   e.GET("/", h.getHome)
+
+  e.GET("/tournament/new", h.getNewTournament)
+  e.GET("/tournament/:tournamentId", h.getTournament)
+  e.POST("/tournament/new", h.postNewTournament)
+
   e.GET("/dashboard", h.getDashboard)
 
   e.Use(middleware.Logger())
@@ -51,6 +57,57 @@ func (h *Handler) getHome(c echo.Context) error {
   return c.HTML(http.StatusOK, templates.Home())
 }
 
+func (h *Handler) getNewTournament(c echo.Context) error {
+  return c.HTML(http.StatusOK, templates.NewTournament())
+}
+
+func (h *Handler) postNewTournament(c echo.Context) error {
+  var id int
+  err := h.DB.QueryRow(`
+INSERT INTO "tournament" (
+  "title",
+  "subtitle"
+)
+VALUES ($1, $2)
+RETURNING "tournament_id"
+`, c.FormValue("title"), c.FormValue("subtitle")).Scan(&id)
+
+  if err != nil {
+    c.Error(err)
+  }
+
+  return c.Redirect(http.StatusSeeOther, strconv.Itoa(id))
+}
+
+type Tournament struct {
+  Title    string
+  Subtitle string
+}
+
+func (h *Handler) getTournament(c echo.Context) error {
+  id, err := strconv.Atoi(c.Param("tournamentId"))
+  if err != nil {
+    c.Error(err)
+  }
+
+  tournament := Tournament{}
+  err = h.DB.QueryRow(`
+SELECT "tournament"."title"
+      ,"tournament"."subtitle"
+  FROM "tournament"
+ WHERE "tournament"."tournament_id" = $1
+`, id).Scan(&tournament.Title, &tournament.Subtitle)
+  if err != nil {
+    if err == sql.ErrNoRows {
+      return echo.NewHTTPError(http.StatusNotFound, "Not Found")
+    } else {
+      c.Error(err)
+    }
+  }
+
+  return c.HTML(http.StatusOK, templates.Tournament(tournament.Title, tournament.Subtitle))
+}
+
 func (h *Handler) getDashboard(c echo.Context) error {
   roundParam, err := strconv.Atoi(c.QueryParam("round"))
   if err != nil {
@@ -58,8 +115,8 @@ func (h *Handler) getDashboard(c echo.Context) error {
   }
 
   model := templates.DashboardPage{
-    Pairings: []templates.PairingModel{},
-    Standings: []templates.StandingModel{},
+    Pairings:      []templates.PairingModel{},
+    Standings:     []templates.StandingModel{},
     SelectedRound: roundParam,
   }
 
