@@ -1,7 +1,9 @@
 CREATE TABLE "player" (
-	"player_id" INTEGER NOT NULL,
-	"name"      INTEGER NOT NULL,
-	PRIMARY KEY ("player_id" AUTOINCREMENT)
+  "player_id"     INTEGER NOT NULL,
+  "tournament_id" INTEGER NOT NULL,
+  "name"          TEXT    NOT NULL,
+  PRIMARY KEY ("player_id" AUTOINCREMENT),
+  FOREIGN KEY ("tournament_id") REFERENCES "tournament"("tournament_id")
 );
 
 CREATE TABLE "tournament" (

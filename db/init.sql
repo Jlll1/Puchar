@@ -1,13 +1,13 @@
-INSERT INTO "player" ("name")
-VALUES
-  ("Player Primary"),
-  ("Byk Byczy"),
-  ("Char Mander"),
-  ("Krakers Pies");
-
 INSERT INTO "tournament" ("title", "subtitle")
 VALUES
   ("Exceptional Championship", "The best of the best face each other");
+
+INSERT INTO "player" ("tournament_id", "name")
+VALUES
+  (1, "Player Primary"),
+  (1, "Byk Byczy"),
+  (1, "Char Mander"),
+  (1, "Krakers Pies");
 
 INSERT INTO "pairing" (
   "tournament_id",

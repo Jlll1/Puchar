@@ -43,6 +43,9 @@ func main() {
   e.GET("/tournament/:tournamentId", h.getTournament)
   e.POST("/tournament/new", h.postNewTournament)
 
+  e.GET("tournament/:tournamentId/newPlayer", h.getNewPlayer)
+  e.POST("tournament/:tournamentId/newPlayer", h.postNewPlayer)
+
   e.GET("/dashboard", h.getDashboard)
 
   e.Use(middleware.Logger())
@@ -79,9 +82,61 @@ RETURNING "tournament_id"
   return c.Redirect(http.StatusSeeOther, strconv.Itoa(id))
 }
 
+func (h *Handler) getNewPlayer(c echo.Context) error {
+  tournamentId, err := strconv.Atoi(c.Param("tournamentId"))
+  _, err = retrieveTournamentById(h.DB, tournamentId)
+  if err != nil {
+    if err == sql.ErrNoRows {
+      return echo.NewHTTPError(http.StatusNotFound, "Tournament not found")
+    } else {
+      c.Error(err)
+    }
+  }
+
+  return c.HTML(http.StatusOK, templates.NewPlayer())
+}
+
+func (h *Handler) postNewPlayer(c echo.Context) error {
+  tournamentId, err := strconv.Atoi(c.Param("tournamentId"))
+  _, err = retrieveTournamentById(h.DB, tournamentId)
+  if err != nil {
+    if err == sql.ErrNoRows {
+      return echo.NewHTTPError(http.StatusNotFound, "Tournament not found")
+    } else {
+      c.Error(err)
+    }
+  }
+
+  _, err = h.DB.Exec(`
+INSERT INTO "player"(
+  "tournament_id"
+  ,"name"
+)
+VALUES ($1, $2)
+`, tournamentId, c.FormValue("name"))
+  if err != nil {
+    c.Error(err)
+  }
+
+  return c.Redirect(http.StatusSeeOther, c.Request().Header.Get("referer"))
+}
+
 type Tournament struct {
   Title    string
   Subtitle string
+}
+
+// @CLEANUP this shouldn't exist
+func retrieveTournamentById(db *sql.DB, tournamentId int) (*Tournament, error) {
+  tournament := Tournament{}
+  err := db.QueryRow(`
+SELECT "tournament"."title"
+      ,"tournament"."subtitle"
+  FROM "tournament"
+ WHERE "tournament"."tournament_id" = $1
+`, tournamentId).Scan(&tournament.Title, &tournament.Subtitle)
+
+  return &tournament, err
 }
 
 func (h *Handler) getTournament(c echo.Context) error {
@@ -90,13 +145,8 @@ func (h *Handler) getTournament(c echo.Context) error {
     c.Error(err)
   }
 
-  tournament := Tournament{}
-  err = h.DB.QueryRow(`
-SELECT "tournament"."title"
-      ,"tournament"."subtitle"
-  FROM "tournament"
- WHERE "tournament"."tournament_id" = $1
-`, id).Scan(&tournament.Title, &tournament.Subtitle)
+  tournament, err := retrieveTournamentById(h.DB, id)
+
   if err != nil {
     if err == sql.ErrNoRows {
       return echo.NewHTTPError(http.StatusNotFound, "Not Found")
